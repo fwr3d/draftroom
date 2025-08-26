@@ -1,8 +1,8 @@
 {
-  "name": "fantasy-football-mock-draft",
+  "name": "draftroom",
   "version": "1.0.0",
   "private": true,
-  "homepage": "https://YOUR_USERNAME.github.io/fantasy-football-mock-draft",
+  "homepage": "https://fwr3d.github.io/draftroom",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

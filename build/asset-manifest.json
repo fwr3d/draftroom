@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/draftroom/static/css/main.e35849f7.css",
+    "main.js": "/draftroom/static/js/main.6a883c4b.js",
+    "index.html": "/draftroom/index.html",
+    "main.e35849f7.css.map": "/draftroom/static/css/main.e35849f7.css.map",
+    "main.6a883c4b.js.map": "/draftroom/static/js/main.6a883c4b.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e35849f7.css",
+    "static/js/main.6a883c4b.js"
+  ]
+}

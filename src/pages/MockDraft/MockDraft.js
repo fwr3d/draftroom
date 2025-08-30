@@ -1,233 +1,598 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Players } from '../../data/Players.js';
+import { playerPositionRanks, overallPlayerRankings } from '../../data/playerPositionRanks.js';
 import './MockDraft.css';
 
-const MockDraft = () => {
-  const [searchParams] = useSearchParams();
+function MockDraft() {
   const navigate = useNavigate();
-  const teams = parseInt(searchParams.get('teams')) || 8;
-  
-  // Built-in player data
-  const [allPlayers] = useState([
-    { id: 1, name: "Christian McCaffrey", position: "RB", team: "SF" },
-    { id: 2, name: "Tyreek Hill", position: "WR", team: "MIA" },
-    { id: 3, name: "Austin Ekeler", position: "RB", team: "LAC" },
-    { id: 4, name: "Stefon Diggs", position: "WR", team: "BUF" },
-    { id: 5, name: "Saquon Barkley", position: "RB", team: "PHI" },
-    { id: 6, name: "Davante Adams", position: "WR", team: "LV" },
-    { id: 7, name: "Derrick Henry", position: "RB", team: "BAL" },
-    { id: 8, name: "A.J. Brown", position: "WR", team: "PHI" },
-    { id: 9, name: "Josh Jacobs", position: "RB", team: "GB" },
-    { id: 10, name: "CeeDee Lamb", position: "WR", team: "DAL" },
-    { id: 11, name: "Patrick Mahomes", position: "QB", team: "KC" },
-    { id: 12, name: "Travis Kelce", position: "TE", team: "KC" },
-    { id: 13, name: "Alvin Kamara", position: "RB", team: "NO" },
-    { id: 14, name: "Deebo Samuel", position: "WR", team: "SF" },
-    { id: 15, name: "Nick Chubb", position: "RB", team: "CLE" },
-    { id: 16, name: "Mike Evans", position: "WR", team: "TB" },
-    { id: 17, name: "Jalen Hurts", position: "QB", team: "PHI" },
-    { id: 18, name: "Mark Andrews", position: "TE", team: "BAL" },
-    { id: 19, name: "Joe Mixon", position: "RB", team: "CIN" },
-    { id: 20, name: "DK Metcalf", position: "WR", team: "SEA" },
-    { id: 21, name: "Lamar Jackson", position: "QB", team: "BAL" },
-    { id: 22, name: "George Kittle", position: "TE", team: "SF" },
-    { id: 23, name: "Rachaad White", position: "RB", team: "TB" },
-    { id: 24, name: "Chris Olave", position: "WR", team: "NO" },
-    { id: 25, name: "Justin Herbert", position: "QB", team: "LAC" }
-  ]);
-
-  const [availablePlayers, setAvailablePlayers] = useState([...allPlayers]);
-  const [draftBoard, setDraftBoard] = useState([]);
-  const [currentPick, setCurrentPick] = useState(1);
-  const [currentTeam, setCurrentTeam] = useState(1);
+  const [searchParams] = useSearchParams();
+  const [allPlayers, setAllPlayers] = useState([]);
+  const [filteredPlayers, setFilteredPlayers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [positionFilter, setPositionFilter] = useState('ALL');
-  const [currentPage, setCurrentPage] = useState(1);
-  const playersPerPage = 10;
+  const [draftState, setDraftState] = useState({
+    currentPick: 1,
+    currentRound: 1,
+    currentTeam: 1,
+    draftBoard: [],
+    availablePlayers: [],
+    teamRosters: {},
+    isUserTurn: true,
+    isDraftComplete: false
+  });
+  
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+  const [isRosterExpanded, setIsRosterExpanded] = useState(false);
+  
+  const teams = parseInt(searchParams.get('teams')) || 8;
 
-  // Calculate which team's turn it is
-  const getCurrentTeam = (pickNumber) => {
-    const round = Math.ceil(pickNumber / teams);
-    const isSnakeRound = round % 2 === 0;
+  useEffect(() => {
+    // Flatten Players data and assign rankings
+    const flattened = [];
+    Players.forEach(positionGroup => {
+      Object.values(positionGroup).forEach(players => {
+        if (Array.isArray(players)) {
+          players.forEach(player => {
+            // Skip players without required fields (safety check)
+            if (!player.id || !player.name || !player.position) {
+              return;
+            }
+            
+            // Assign ranking based on playerPositionRanks and overall rankings
+            const positionRanks = playerPositionRanks[player.position];
+            let playerRank = 999; // Default rank for unranked players
+            let overallRank = 999; // Default overall rank
+            
+            // Check overall rankings first
+            const overallIndex = overallPlayerRankings.indexOf(player.id);
+            if (overallIndex !== -1) {
+              overallRank = overallIndex + 1; // +1 because array is 0-indexed
+            }
+            
+            if (positionRanks) {
+              // Find which tier the player belongs to
+              for (const [tierName, tierPlayers] of Object.entries(positionRanks)) {
+                if (tierPlayers.includes(player.id)) {
+                  // Extract tier number and assign rank
+                  const tierNum = parseInt(tierName.split(' ')[1]);
+                  const tierIndex = tierPlayers.indexOf(player.id);
+                  playerRank = (tierNum * 100) + tierIndex; // Lower number = better rank
+                  break;
+                }
+              }
+            }
+            
+            // Add ranking to player object
+            const playerWithRank = { ...player, rank: playerRank, overallRank: overallRank };
+            flattened.push(playerWithRank);
+          });
+        }
+      });
+    });
     
-    if (isSnakeRound) {
-      return teams - ((pickNumber - 1) % teams);
+    console.log('MockDraft - Total players loaded:', flattened.length);
+    console.log('MockDraft - Players by position:', flattened.reduce((acc, player) => {
+      acc[player.position] = (acc[player.position] || 0) + 1;
+      return acc;
+    }, {}));
+    
+    setAllPlayers(flattened);
+    setFilteredPlayers(flattened);
+  }, []);
+
+  useEffect(() => {
+    // Filter players based on search and position
+    const filtered = allPlayers.filter(player => {
+      const matchesSearch = player.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesPosition = positionFilter === 'ALL' || player.position === positionFilter;
+      return matchesSearch && matchesPosition;
+    });
+
+    // Sort players based on position filter (same logic as PlayerHub)
+    let sorted;
+    if (positionFilter === 'ALL') {
+      // Use overall rankings when showing all positions
+      sorted = [...filtered].sort((a, b) => {
+        return (a.overallRank || 999) - (b.overallRank || 999); // Lower overall rank = better
+      });
     } else {
-      return ((pickNumber - 1) % teams) + 1;
+      // Use position-specific rankings when filtering by position
+      sorted = [...filtered].sort((a, b) => {
+        return (a.rank || 999) - (b.rank || 999); // Lower position rank = better
+      });
     }
+
+    console.log('MockDraft - Filtered players:', filtered.length);
+    console.log('MockDraft - Position filter:', positionFilter);
+    console.log('MockDraft - Sorting by:', positionFilter === 'ALL' ? 'overall rankings' : 'position rankings');
+    
+    setFilteredPlayers(sorted);
+  }, [searchTerm, positionFilter, allPlayers]);
+
+  // Initialize draft when players are loaded
+  useEffect(() => {
+    if (allPlayers.length > 0) {
+      initializeDraft();
+    }
+  }, [allPlayers]);
+
+  // Auto-trigger AI picks when it's not the user's turn
+  useEffect(() => {
+    if (!draftState.isUserTurn && !draftState.isDraftComplete && draftState.availablePlayers.length > 0) {
+      const timer = setTimeout(() => {
+        aiDraft();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [draftState.isUserTurn, draftState.isDraftComplete, draftState.availablePlayers.length]);
+
+  // AI Draft Logic Functions
+  const initializeDraft = () => {
+    const teamRosters = {};
+    for (let i = 1; i <= teams; i++) {
+      teamRosters[i] = {
+        QB: [],
+        RB: [],
+        WR: [],
+        TE: [],
+        K: [],
+        DST: []
+      };
+    }
+
+    setDraftState(prev => ({
+      ...prev,
+      availablePlayers: [...allPlayers],
+      teamRosters
+    }));
   };
 
-  // Filter players based on search and position
-  const filteredPlayers = availablePlayers.filter(player => {
-    const matchesSearch = player.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesPosition = positionFilter === 'ALL' || player.position === positionFilter;
-    return matchesSearch && matchesPosition;
-  });
+  const getPositionalNeed = (teamRoster, position) => {
+    const roster = teamRoster[position] || [];
+    const maxPlayers = {
+      QB: 2,
+      RB: 4,
+      WR: 5,
+      TE: 2,
+      K: 1,
+      DST: 1
+    };
+    return Math.max(0, maxPlayers[position] - roster.length);
+  };
 
-  // Pagination
-  const totalPages = Math.ceil(filteredPlayers.length / playersPerPage);
-  const startIndex = (currentPage - 1) * playersPerPage;
-  const endIndex = startIndex + playersPerPage;
-  const currentPlayers = filteredPlayers.slice(startIndex, endIndex);
+  const calculatePositionValue = (player, teamRoster, currentRound) => {
+    const position = player.position;
+    const need = getPositionalNeed(teamRoster, position);
+    const overallRank = player.overallRank || 999;
+    const positionRank = player.rank || 999;
+    
+    // Base value from rankings - prioritize position rankings for better positional strategy
+    let value = (1000 - positionRank) * 15; // Increased weight for position rankings
+    value += (1000 - overallRank) * 5; // Additional overall ranking consideration
+    
+    // Position scarcity bonus
+    if (need > 0) {
+      value += need * 100;
+    }
+    
+    // Early round strategy (RB/WR priority)
+    if (currentRound <= 4) {
+      if (position === 'RB' || position === 'WR') {
+        value += 200;
+      }
+    }
+    
+    // Late round strategy (QB/TE/K/DST priority)
+    if (currentRound >= 8) {
+      if (position === 'QB' || position === 'TE' || position === 'K' || position === 'DST') {
+        value += 150;
+      }
+    }
+    
+    // Position-specific adjustments
+    if (position === 'RB' && currentRound <= 6) value += 100;
+    if (position === 'WR' && currentRound <= 7) value += 80;
+    if (position === 'QB' && currentRound >= 5) value += 120;
+    if (position === 'TE' && currentRound >= 6) value += 100;
+    
+    return value;
+  };
 
-  // Handle drafting a player
-  const handleDraftPlayer = (player) => {
-    if (currentTeam !== 1) {
-      alert("It's not your turn yet!");
+  const aiDraft = () => {
+    console.log('AI Draft called:', {
+      isUserTurn: draftState.isUserTurn,
+      isDraftComplete: draftState.isDraftComplete,
+      currentTeam: draftState.currentTeam,
+      availablePlayers: draftState.availablePlayers.length,
+      positionFilter: positionFilter
+    });
+
+    if (draftState.isUserTurn || draftState.isDraftComplete) {
+      console.log('AI Draft blocked:', { isUserTurn: draftState.isUserTurn, isDraftComplete: draftState.isDraftComplete });
       return;
     }
 
-    const newDraftBoard = [...draftBoard, {
-      pick: currentPick,
-      team: currentTeam,
-      player: player,
-      round: Math.ceil(currentPick / teams)
-    }];
+    const currentTeam = draftState.currentTeam;
+    const teamRoster = draftState.teamRosters[currentTeam];
+    const availablePlayers = draftState.availablePlayers;
+    
+    if (availablePlayers.length === 0) {
+      console.log('No available players for AI');
+      return;
+    }
 
-    setDraftBoard(newDraftBoard);
-    setAvailablePlayers(availablePlayers.filter(p => p.id !== player.id));
-    setCurrentPick(currentPick + 1);
-    setCurrentTeam(getCurrentTeam(currentPick + 1));
-    setCurrentPage(1); // Reset to first page after drafting
+    // Calculate value for each available player
+    const playerValues = availablePlayers.map(player => ({
+      ...player,
+      value: calculatePositionValue(player, teamRoster, draftState.currentRound)
+    }));
+
+    // Sort by value and pick the best available
+    playerValues.sort((a, b) => b.value - a.value);
+    const selectedPlayer = playerValues[0];
+
+    // Execute the pick
+    executePick(selectedPlayer, currentTeam);
   };
 
-  // Reset filters when they change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, positionFilter]);
+  const executePick = (player, teamNumber) => {
+    const newDraftBoard = [...draftState.draftBoard];
+    newDraftBoard.push({
+      pick: draftState.currentPick,
+      round: draftState.currentRound,
+      team: teamNumber,
+      player: player
+    });
 
-  const handleGoBack = () => {
-    navigate('/Menu');
+    const newTeamRosters = { ...draftState.teamRosters };
+    newTeamRosters[teamNumber][player.position].push(player);
+
+    const newAvailablePlayers = draftState.availablePlayers.filter(p => p.id !== player.id);
+
+    const nextPick = draftState.currentPick + 1;
+    const nextRound = Math.ceil(nextPick / teams);
+    const nextTeam = nextPick % teams === 0 ? teams : nextPick % teams;
+    const isUserTurn = nextTeam === 1; // User is always team 1
+
+    console.log('ExecutePick - Next state:', {
+      nextPick,
+      nextRound,
+      nextTeam,
+      isUserTurn,
+      availablePlayersCount: newAvailablePlayers.length
+    });
+
+    setDraftState(prev => ({
+      ...prev,
+      currentPick: nextPick,
+      currentRound: nextRound,
+      currentTeam: nextTeam,
+      draftBoard: newDraftBoard,
+      teamRosters: newTeamRosters,
+      availablePlayers: newAvailablePlayers,
+      isUserTurn,
+      isDraftComplete: newAvailablePlayers.length === 0
+    }));
+
+    // Update filtered players for display (maintain sorting)
+    const filtered = newAvailablePlayers.filter(player => {
+      const matchesSearch = searchTerm.toLowerCase() === '' || player.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesPosition = positionFilter === 'ALL' || player.position === positionFilter;
+      return matchesSearch && matchesPosition;
+    });
+
+    // Sort the filtered players based on current filter
+    let sorted;
+    if (positionFilter === 'ALL') {
+      sorted = [...filtered].sort((a, b) => {
+        return (a.overallRank || 999) - (b.overallRank || 999);
+      });
+    } else {
+      sorted = [...filtered].sort((a, b) => {
+        return (a.rank || 999) - (b.rank || 999);
+      });
+    }
+
+    setFilteredPlayers(sorted);
   };
 
-  const isUserTurn = currentTeam === 1;
+  const handleDraft = (player) => {
+    if (!draftState.isUserTurn || draftState.isDraftComplete) return;
+    
+    executePick(player, 1); // User is team 1
+    
+    // AI pick will be automatically triggered by useEffect
+  };
 
   return (
     <div className="mock-draft">
       <div className="container">
         <div className="draft-header">
-          <button className="btn btn-secondary back-btn" onClick={handleGoBack}>
-            ← Back to Hub
+          <button className="btn btn-secondary back-btn" onClick={() => navigate('/hub')}>
+            ← Back to Player Hub
           </button>
           <div className="draft-info">
-            <h1>Mock Draft - {teams} Teams</h1>
+            <h1>DraftRoom - {teams} Teams</h1>
             <div className="turn-indicator">
               <span className="turn-label">Current Pick:</span>
-              <span className={`turn-team ${isUserTurn ? 'user-turn' : ''}`}>
-                Team {currentTeam} (Pick #{currentPick})
+              <span className={`turn-team ${draftState.isUserTurn ? 'user-turn' : ''}`}>
+                {draftState.isUserTurn ? 'Your Turn' : `Team ${draftState.currentTeam}`} 
+                (Pick #{draftState.currentPick})
               </span>
             </div>
           </div>
         </div>
-
-        <div className="draft-content grid grid-2">
-          {/* Draft Board */}
-          <div className="draft-board card">
-            <h2>Draft Board</h2>
-            <div className="board-content">
-              {draftBoard.length === 0 ? (
-                <p className="empty-board">No picks made yet. Start drafting!</p>
-              ) : (
-                <div className="picks-list">
-                  {draftBoard.map((pick) => (
-                    <div key={pick.pick} className={`pick-item ${pick.team === 1 ? 'user-pick' : ''}`}>
-                      <div className="pick-header">
-                        <span className="pick-number">#{pick.pick}</span>
-                        <span className="pick-team">Team {pick.team}</span>
-                        <span className="pick-round">R{pick.round}</span>
+        
+        <div className="draft-content">
+          <div className="draft-main-section">
+            <div className="draft-board-section">
+              <div className="draft-board glass">
+                <h2>Draft Board</h2>
+                <div className="draft-rounds">
+                  {/* only show the current round */}
+                  {(() => {
+                    const currentRound = draftState.currentRound;
+                    const roundPicks = draftState.draftBoard.filter(pick => pick.round === currentRound);
+                    
+                    return (
+                      <div className="draft-round current-round">
+                        <h3>
+                          Round {currentRound}
+                          <span className="current-indicator"> (Current)</span>
+                        </h3>
+                        <div className="round-picks">
+                          {Array.from({length: teams}, (_, teamIndex) => {
+                            const teamNumber = teamIndex + 1;
+                            const pick = roundPicks.find(p => p.team === teamNumber);
+                            
+                            return (
+                              <div key={teamIndex} className="pick-slot">
+                                <div className="team-label">Team {teamNumber}</div>
+                                {pick ? (
+                                  <div className="picked-player">
+                                    <div className="player-name">{pick.player.name}</div>
+                                    <div className="player-details">{pick.player.position} | {pick.player.team}</div>
+                                  </div>
+                                ) : (
+                                  <div className="empty-slot">-</div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <div className="pick-player">
-                        <span className="player-name">{pick.player.name}</span>
-                        <span className="player-details">
-                          {pick.player.position} • {pick.player.team}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })()}
+                </div>
+              </div>
+              
+              {/* draft history buttons - only show after first pick */}
+              {draftState.draftBoard.length > 0 && (
+                <div className="draft-history glass">
+                  <div className="history-header">
+                    <button 
+                      className="history-link-btn"
+                      onClick={() => setIsHistoryExpanded(true)}
+                    >
+                      View Picks 
+                    </button>
+                    <button 
+                      className="history-link-btn"
+                      onClick={() => setIsRosterExpanded(true)}
+                    >
+                      View Rosters
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Player Selection */}
-          <div className="player-selection card">
-            <h2>Available Players</h2>
             
-            {/* Search and Filters */}
-            <div className="search-filters">
-              <input
-                type="text"
-                placeholder="Search players..."
-                className="form-input"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <select
-                className="form-select"
-                value={positionFilter}
-                onChange={(e) => setPositionFilter(e.target.value)}
-              >
-                <option value="ALL">All Positions</option>
-                <option value="QB">Quarterbacks</option>
-                <option value="RB">Running Backs</option>
-                <option value="WR">Wide Receivers</option>
-                <option value="TE">Tight Ends</option>
-              </select>
-            </div>
-
-            {/* Players List */}
-            <div className="players-list">
-              {currentPlayers.map((player) => (
-                <div key={player.id} className="player-item">
-                  <div className="player-info">
-                    <span className="player-name">{player.name}</span>
-                    <span className="player-details">
-                      {player.position} • {player.team}
-                    </span>
+            <div className="player-selection glass">
+              <h2>Available Players</h2>
+              <div className="filters">
+                <input 
+                  type="text" 
+                  placeholder="Search players..." 
+                  className="form-input" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <select 
+                  className="form-select" 
+                  value={positionFilter}
+                  onChange={(e) => setPositionFilter(e.target.value)}
+                >
+                  <option value="ALL">All Positions</option>
+                  <option value="QB">QB</option>
+                  <option value="RB">RB</option>
+                  <option value="WR">WR</option>
+                  <option value="TE">TE</option>
+                  <option value="K">K</option>
+                  <option value="DST">DST</option>
+                </select>
+              </div>
+              
+              <div className="player-list">
+                {filteredPlayers.slice(0, 30).map(player => (
+                  <div key={player.id} className="player-card">
+                    <div className="player-info">
+                      <div className="player-name">{player.name}</div>
+                      <div className="player-details">
+                        {player.position} | {player.team}
+                      </div>
+                    </div>
+                    {draftState.isUserTurn && !draftState.isDraftComplete && (
+                      <button 
+                        className="btn btn-primary draft-btn" 
+                        onClick={() => handleDraft(player)}
+                      >
+                        Draft
+                      </button>
+                    )}
                   </div>
-                  <button
-                    className={`btn ${isUserTurn ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => handleDraftPlayer(player)}
-                    disabled={!isUserTurn}
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {/* full screen overlay for draft history */}
+          {isHistoryExpanded && (
+            <div className="history-overlay">
+              <div className="history-overlay-content">
+                <div className="history-overlay-header">
+                  <h2>Draft History - {teams} Teams</h2>
+                  <button 
+                    className="close-overlay-btn"
+                    onClick={() => setIsHistoryExpanded(false)}
                   >
-                    {isUserTurn ? 'Draft' : 'Not your turn'}
+                    ✕
                   </button>
                 </div>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="pagination">
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </button>
-                <span className="page-info">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </button>
+                <div className="history-overlay-grid">
+                  {Array.from({length: Math.ceil(draftState.draftBoard.length / teams)}, (_, roundIndex) => {
+                    const round = roundIndex + 1;
+                    const roundPicks = draftState.draftBoard.filter(pick => pick.round === round);
+                    
+                    return (
+                      <div key={round} className="history-overlay-row" style={{ gridTemplateColumns: `repeat(${teams}, 1fr)` }}>
+                        {Array.from({length: teams}, (_, teamIndex) => {
+                          const teamNumber = teamIndex + 1;
+                          const pick = roundPicks.find(p => p.team === teamNumber);
+                          
+                          return (
+                            <div key={teamIndex} className="history-overlay-cell">
+                              {pick ? (
+                                <div className="history-overlay-player">
+                                  <div className="history-overlay-player-name">{pick.player.name}</div>
+                                  <div className="history-overlay-pick-number">{pick.round}.{(pick.pick % teams === 0 ? teams : pick.pick % teams).toString().padStart(2, '0')}</div>
+                                </div>
+                              ) : (
+                                <div className="history-overlay-empty">-</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            )}
-
-            {/* Results count */}
-            <div className="results-count">
-              Showing {filteredPlayers.length} of {availablePlayers.length} available players
             </div>
-          </div>
+          )}
+          
+          {/* full screen overlay for your roster */}
+          {isRosterExpanded && (
+            <div className="roster-overlay">
+              <div className="roster-overlay-content">
+                <div className="roster-overlay-header">
+                  <h2>Your Team Roster</h2>
+                  <button 
+                    className="close-overlay-btn"
+                    onClick={() => setIsRosterExpanded(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="roster-overlay-grid">
+                  <div className="roster-overlay-row">
+                    <h3>Team 1 (Your Team)</h3>
+                    <div className="roster-overlay-positions">
+                      <div className="position-group">
+                        <h4>QB</h4>
+                        <ul>
+                          {draftState.teamRosters[1].QB.map(player => (
+                            <li key={player.id}>{player.name} ({player.position})</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="position-group">
+                        <h4>RB</h4>
+                        <ul>
+                          {draftState.teamRosters[1].RB.map(player => (
+                            <li key={player.id}>{player.name} ({player.position})</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="position-group">
+                        <h4>WR</h4>
+                        <ul>
+                          {draftState.teamRosters[1].WR.map(player => (
+                            <li key={player.id}>{player.name} ({player.position})</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="position-group">
+                        <h4>TE</h4>
+                        <ul>
+                          {draftState.teamRosters[1].TE.map(player => (
+                            <li key={player.id}>{player.name} ({player.position})</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="position-group">
+                        <h4>K</h4>
+                        <ul>
+                          {draftState.teamRosters[1].K.map(player => (
+                            <li key={player.id}>{player.name} ({player.position})</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="position-group">
+                        <h4>DST</h4>
+                        <ul>
+                          {draftState.teamRosters[1].DST.map(player => (
+                            <li key={player.id}>{player.name} ({player.position})</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* draft controls - show when draft isn't done */}
+          {!draftState.isDraftComplete && (
+            <div className="draft-controls glass">
+              <h3>Draft Controls</h3>
+              <div className="control-buttons">
+                {draftState.isUserTurn ? (
+                  <p className="turn-message">It's your turn! Select a player to draft.</p>
+                ) : (
+                  <div>
+                    <p className="turn-message">AI is drafting...</p>
+                    <button 
+                      className="btn btn-secondary" 
+                      onClick={aiDraft}
+                      disabled={draftState.isUserTurn}
+                    >
+                      Force AI Pick
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* show when draft is finished */}
+          {draftState.isDraftComplete && (
+            <div className="draft-complete glass">
+              <h3>🎉 Draft Complete!</h3>
+              <p>All players have been drafted. Check the draft board above to see the results.</p>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => window.location.reload()}
+              >
+                Start New Draft
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
-};
+}
 
 export default MockDraft;

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Fantasy Football Draft Room</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        .debug-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #console {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Fantasy Football Draft Room - Debug Mode</h1>
+    
+    <div class="debug-section">
+        <h2>🧪 Test Application</h2>
+        <button onclick="testVanillaJS()">Test Vanilla JS Version</button>
+        <button onclick="testReactComponents()">Test React Components</button>
+        <button onclick="clearConsole()">Clear Console</button>
+        <div id="testResults"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>📊 Console Output</h2>
+        <div id="console"></div>
+    </div>
+
+    <script>
+        // Override console methods to capture output
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        function addToConsole(type, ...args) {
+            const consoleDiv = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            consoleDiv.innerHTML += `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        console.log = (...args) => {
+            originalLog(...args);
+            addToConsole('log', ...args);
+        };
+        
+        console.error = (...args) => {
+            originalError(...args);
+            addToConsole('error', ...args);
+        };
+        
+        console.warn = (...args) => {
+            originalWarn(...args);
+            addToConsole('warn', ...args);
+        };
+
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+        }
+
+        function testVanillaJS() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '<p class="warning">Testing Vanilla JS version...</p>';
+            
+            try {
+                // Test if we can load the main app
+                import('./src/index.js').then(() => {
+                    results.innerHTML = '<p class="success">✓ Vanilla JS version loaded successfully!</p>';
+                }).catch(e => {
+                    results.innerHTML = `<p class="error">✗ Vanilla JS error: ${e.message}</p>`;
+                    console.error('Vanilla JS test failed:', e);
+                });
+            } catch (e) {
+                results.innerHTML = `<p class="error">✗ Test failed: ${e.message}</p>`;
+                console.error('Test failed:', e);
+            }
+        }
+
+        function testReactComponents() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '<p class="warning">Testing React components...</p>';
+            
+            try {
+                // Test if we can load the Players data
+                import('./src/data/Players.js').then(module => {
+                    const { Players } = module;
+                    if (Players && Array.isArray(Players)) {
+                        results.innerHTML = `<p class="success">✓ React components test passed! Players data loaded (${Players.length} position groups)</p>`;
+                    } else {
+                        results.innerHTML = '<p class="error">✗ Players data structure is incorrect</p>';
+                    }
+                }).catch(e => {
+                    results.innerHTML = `<p class="error">✗ React components test failed: ${e.message}</p>`;
+                    console.error('React components test failed:', e);
+                });
+            } catch (e) {
+                results.innerHTML = `<p class="error">✗ Test failed: ${e.message}</p>`;
+                console.error('Test failed:', e);
+            }
+        }
+
+        // Auto-run basic tests
+        window.addEventListener('load', () => {
+            console.log('Debug page loaded. Running basic tests...');
+            
+            // Test file structure
+            console.log('Testing file structure...');
+            fetch('./src/data/Players.js')
+                .then(response => {
+                    if (response.ok) {
+                        console.log('✓ Players.js file accessible');
+                    } else {
+                        console.error('✗ Players.js file not accessible');
+                    }
+                })
+                .catch(e => console.error('✗ Error accessing Players.js:', e));
+            
+            // Test CSS
+            fetch('./src/index.css')
+                .then(response => {
+                    if (response.ok) {
+                        console.log('✓ CSS file accessible');
+                    } else {
+                        console.error('✗ CSS file not accessible');
+                    }
+                })
+                .catch(e => console.error('✗ Error accessing CSS:', e));
+        });
+    </script>
+</body>
+</html>

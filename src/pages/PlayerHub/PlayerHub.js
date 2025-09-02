@@ -11,16 +11,19 @@ function PlayerHub() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [positionFilter, setPositionFilter] = useState('ALL');
-  const [sortBy, setSortBy] = useState('overall');
+
+  const [isLoading, setIsLoading] = useState(true);
   const playersPerPage = 20;
 
   useEffect(() => {
-    // Flatten Players data and assign rankings
-    const flattened = [];
-    Players.forEach(positionGroup => {
-      Object.values(positionGroup).forEach(players => {
-        if (Array.isArray(players)) {
-          players.forEach(player => {
+    try {
+      // Flatten Players data and assign rankings
+      const flattened = [];
+      console.log('Players data:', Players);
+      Players.forEach(positionGroup => {
+        Object.values(positionGroup).forEach(players => {
+          if (Array.isArray(players)) {
+            players.forEach(player => {
             // Skip players without required fields (safety check)
             if (!player.id || !player.name || !player.position) {
               return;
@@ -55,13 +58,13 @@ function PlayerHub() {
               }
             }
             
-            // Add ranking to player object
-            const playerWithRank = { ...player, rank: playerRank, overallRank: overallRank };
-            flattened.push(playerWithRank);
-          });
-        }
+              // Add ranking to player object
+              const playerWithRank = { ...player, rank: playerRank, overallRank: overallRank };
+              flattened.push(playerWithRank);
+            });
+          }
+        });
       });
-    });
     
     console.log('Total players loaded:', flattened.length);
     console.log('Players by position:', flattened.reduce((acc, player) => {
@@ -69,8 +72,13 @@ function PlayerHub() {
       return acc;
     }, {}));
     
-    setAllPlayers(flattened);
-    setFilteredPlayers(flattened);
+      setAllPlayers(flattened);
+      setFilteredPlayers(flattened);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error loading players:', error);
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -81,19 +89,10 @@ function PlayerHub() {
       return matchesSearch && matchesPosition;
     });
 
-    // Sort players based on position filter
-    let sorted;
-    if (positionFilter === 'ALL') {
-      // Use overall rankings when showing all positions
-      sorted = [...filtered].sort((a, b) => {
-        return (a.overallRank || 999) - (b.overallRank || 999); // Lower overall rank = better
-      });
-    } else {
-      // Use position-specific rankings when filtering by position
-      sorted = [...filtered].sort((a, b) => {
-        return (a.rank || 999) - (b.rank || 999); // Lower position rank = better
-      });
-    }
+    // Sort players by overall rank
+    const sorted = [...filtered].sort((a, b) => {
+      return (a.overallRank || 999) - (b.overallRank || 999);
+    });
 
     console.log('Filtered players:', filtered.length);
     console.log('Position filter:', positionFilter);
@@ -123,45 +122,44 @@ function PlayerHub() {
   const getTeamLogo = (team) => {
     // Map team abbreviations to logo files
     const teamLogoMap = {
-      'ARI': '/team-logos/ARI.webp',
-      'ATL': '/team-logos/ATL.webp',
-      'BAL': '/team-logos/BAL.webp',
-      'BUF': '/team-logos/BUF.webp',
-      'CAR': '/team-logos/CAR.webp',
-      'CHI': '/team-logos/CHI.webp',
-      'CIN': '/team-logos/CIN.webp',
-      'CLE': '/team-logos/CLE.webp',
-      'DAL': '/team-logos/DAL.webp',
-      'DEN': '/team-logos/DEN.webp',
-      'DET': '/team-logos/DET.webp',
-      'GB': '/team-logos/GB.webp',
-      'HOU': '/team-logos/HOU.webp',
-      'IND': '/team-logos/IND.webp',
-      'JAX': '/team-logos/JAX.webp',
-      'KC': '/team-logos/KC.webp',
-      'LAC': '/team-logos/LAC.webp',
-      'LAR': '/team-logos/LAR.webp',
-      'LV': '/team-logos/LV.webp',
-      'MIA': '/team-logos/MIA.webp',
-      'MIN': '/team-logos/MIN.webp',
-      'NE': '/team-logos/NE.webp',
-      'NO': '/team-logos/NO.webp',
-      'NYG': '/team-logos/NYG.webp',
-      'NYJ': '/team-logos/NYJ.webp',
-      'PHI': '/team-logos/PHI.webp',
-      'PIT': '/team-logos/PIT.webp',
-      'SEA': '/team-logos/SEA.webp',
-      'SF': '/team-logos/SF.webp',
-      'TB': '/team-logos/TB.webp',
-      'TEN': '/team-logos/TEN.webp',
-      'WAS': '/team-logos/WAS.webp'
+      'ARI': `${process.env.PUBLIC_URL}/team-logos/ARI.webp`,
+      'ATL': `${process.env.PUBLIC_URL}/team-logos/ATL.webp`,
+      'BAL': `${process.env.PUBLIC_URL}/team-logos/BAL.webp`,
+      'BUF': `${process.env.PUBLIC_URL}/team-logos/BUF.webp`,
+      'CAR': `${process.env.PUBLIC_URL}/team-logos/CAR.webp`,
+      'CHI': `${process.env.PUBLIC_URL}/team-logos/CHI.webp`,
+      'CIN': `${process.env.PUBLIC_URL}/team-logos/CIN.webp`,
+      'CLE': `${process.env.PUBLIC_URL}/team-logos/CLE.webp`,
+      'DAL': `${process.env.PUBLIC_URL}/team-logos/DAL.webp`,
+      'DEN': `${process.env.PUBLIC_URL}/team-logos/DEN.webp`,
+      'DET': `${process.env.PUBLIC_URL}/team-logos/DET.webp`,
+      'GB': `${process.env.PUBLIC_URL}/team-logos/GB.webp`,
+      'HOU': `${process.env.PUBLIC_URL}/team-logos/HOU.webp`,
+      'IND': `${process.env.PUBLIC_URL}/team-logos/IND.webp`,
+      'JAX': `${process.env.PUBLIC_URL}/team-logos/JAX.webp`,
+      'KC': `${process.env.PUBLIC_URL}/team-logos/KC.webp`,
+      'LAC': `${process.env.PUBLIC_URL}/team-logos/LAC.webp`,
+      'LAR': `${process.env.PUBLIC_URL}/team-logos/LAR.webp`,
+      'LV': `${process.env.PUBLIC_URL}/team-logos/LV.webp`,
+      'MIA': `${process.env.PUBLIC_URL}/team-logos/MIA.webp`,
+      'MIN': `${process.env.PUBLIC_URL}/team-logos/MIN.webp`,
+      'NE': `${process.env.PUBLIC_URL}/team-logos/NE.webp`,
+      'NO': `${process.env.PUBLIC_URL}/team-logos/NO.webp`,
+      'NYG': `${process.env.PUBLIC_URL}/team-logos/NYG.webp`,
+      'NYJ': `${process.env.PUBLIC_URL}/team-logos/NYJ.webp`,
+      'PHI': `${process.env.PUBLIC_URL}/team-logos/PHI.webp`,
+      'PIT': `${process.env.PUBLIC_URL}/team-logos/PIT.webp`,
+      'SEA': `${process.env.PUBLIC_URL}/team-logos/SEA.webp`,
+      'SF': `${process.env.PUBLIC_URL}/team-logos/SF.webp`,
+      'TB': `${process.env.PUBLIC_URL}/team-logos/TB.webp`,
+      'TEN': `${process.env.PUBLIC_URL}/team-logos/TEN.webp`,
+      'WAS': `${process.env.PUBLIC_URL}/team-logos/WAS.webp`
     };
-    return teamLogoMap[team] || '/team-logos/ARI.webp'; // Default fallback
+    return teamLogoMap[team] || `${process.env.PUBLIC_URL}/team-logos/ARI.webp`; // Default fallback
   };
 
   const getPlayerImage = (playerId) => {
-    // Try to find a player image by ID, fallback to a default
-    return `/player-images/${playerId}.png`;
+    return `${process.env.PUBLIC_URL}/player-images/${playerId}.png`;
   };
 
   const renderPlayersPage = () => {
@@ -170,7 +168,15 @@ function PlayerHub() {
     const pagePlayers = filteredPlayers.slice(startIndex, endIndex);
 
     return pagePlayers.map(player => (
-      <div key={player.id} className="player-card">
+      <div 
+        key={player.id} 
+        className="player-card"
+        onClick={() => {
+          console.log('Player clicked:', player.name);
+          // Add your onClick logic here
+        }}
+        style={{ cursor: 'pointer' }}
+      >
         <div className="player-card-header">
           <div className="player-image-section">
             <img 
@@ -196,9 +202,6 @@ function PlayerHub() {
             alt={`${player.team} logo`}
             className="team-logo"
           />
-        </div>
-
-        <div className="player-card-body">
         </div>
       </div>
     ));
@@ -228,18 +231,19 @@ function PlayerHub() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-                             <select 
-                 className="form-select" 
-                 value={positionFilter}
-                 onChange={(e) => setPositionFilter(e.target.value)}
-               >
-                 <option value="ALL">All Positions</option>
-                 <option value="QB">Quarterbacks</option>
-                 <option value="RB">Running Backs</option>
-                 <option value="WR">Wide Receivers</option>
-                 <option value="TE">Tight Ends</option>
-                 <option value="K">Kickers</option>
-               </select>
+              <select 
+                className="form-select" 
+                value={positionFilter}
+                onChange={(e) => setPositionFilter(e.target.value)}
+              >
+                <option value="ALL">All Positions</option>
+                <option value="QB">Quarterbacks</option>
+                <option value="RB">Running Backs</option>
+                <option value="WR">Wide Receivers</option>
+                <option value="TE">Tight Ends</option>
+                <option value="K">Kickers</option>
+              </select>
+
             </div>
             <div className="results-count">
               Showing {Math.min((currentPage - 1) * playersPerPage + 1, filteredPlayers.length)}-
@@ -247,9 +251,20 @@ function PlayerHub() {
             </div>
           </div>
           
-          <div className="players-grid">
-            {renderPlayersPage()}
-          </div>
+          {isLoading ? (
+            <div className="loading-container">
+              <div className="loading-spinner"></div>
+              <p>Loading players...</p>
+            </div>
+          ) : filteredPlayers.length > 0 ? (
+            <div className="players-grid">
+              {renderPlayersPage()}
+            </div>
+          ) : (
+            <div className="loading-container">
+              <p>No players found. Please check the console for errors.</p>
+            </div>
+          )}
           
           {totalPages > 1 && (
             <div className="pagination-section glass">

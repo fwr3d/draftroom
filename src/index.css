@@ -107,9 +107,6 @@ body {
   font-size: 3rem;
   margin-bottom: 10px;
   color: white;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .hub-subtitle {

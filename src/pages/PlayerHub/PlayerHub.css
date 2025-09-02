@@ -12,9 +12,7 @@
 .hub-title {
   font-size: 3rem;
   margin-bottom: 10px;
-  background: rgba(59, 130, 246, 0.8);
-  -webkit-background-clip: text;
-  background-clip: text;
+  color: white;
 }
 
 .hub-subtitle {
@@ -81,13 +79,74 @@
 }
 
 .form-select option {
-  background: #0f172a;
+  background: #1a1a1a;
   color: white !important;
 }
 
 .results-count {
   color: white !important;
   font-size: 14px;
+}
+
+.player-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 14px;
+  color: #2d3748;
+  font-weight: 700;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: white;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(59, 130, 246, 0.3);
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-container p {
+  font-size: 18px;
+  opacity: 0.8;
 }
 
 
@@ -125,6 +184,22 @@
   
   .players-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .player-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .stat-item {
+    padding: 6px;
+  }
+  
+  .stat-label {
+    font-size: 10px;
+  }
+  
+  .stat-value {
+    font-size: 12px;
   }
 }
 

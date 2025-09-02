@@ -24,8 +24,42 @@ function MockDraft() {
   
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
   const [isRosterExpanded, setIsRosterExpanded] = useState(false);
+  const [isDraftPaused, setIsDraftPaused] = useState(false);
   
   const teams = parseInt(searchParams.get('teams')) || 8;
+
+  const handlePauseDraft = () => {
+    setIsDraftPaused(!isDraftPaused);
+    console.log('Draft', isDraftPaused ? 'resumed' : 'paused');
+  };
+
+  const handleRestartDraft = () => {
+    // Re-initialize team rosters properly
+    const teamRosters = {};
+    for (let i = 1; i <= teams; i++) {
+      teamRosters[i] = {
+        QB: [],
+        RB: [],
+        WR: [],
+        TE: [],
+        K: [],
+        DEF: []
+      };
+    }
+    
+    setDraftState({
+      currentPick: 1,
+      currentRound: 1,
+      currentTeam: 1,
+      draftBoard: [],
+      availablePlayers: [...allPlayers],
+      teamRosters: teamRosters,
+      isUserTurn: true,
+      isDraftComplete: false
+    });
+    setIsDraftPaused(false);
+    console.log('Draft restarted with', allPlayers.length, 'available players');
+  };
 
   useEffect(() => {
     // Flatten Players data and assign rankings
@@ -119,13 +153,13 @@ function MockDraft() {
 
   // Auto-trigger AI picks when it's not the user's turn
   useEffect(() => {
-    if (!draftState.isUserTurn && !draftState.isDraftComplete && draftState.availablePlayers.length > 0) {
+    if (!draftState.isUserTurn && !draftState.isDraftComplete && draftState.availablePlayers.length > 0 && !isDraftPaused) {
       const timer = setTimeout(() => {
         aiDraft();
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [draftState.isUserTurn, draftState.isDraftComplete, draftState.availablePlayers.length]);
+  }, [draftState.isUserTurn, draftState.isDraftComplete, draftState.availablePlayers.length, isDraftPaused]);
 
   // AI Draft Logic Functions
   const initializeDraft = () => {
@@ -205,11 +239,12 @@ function MockDraft() {
       isDraftComplete: draftState.isDraftComplete,
       currentTeam: draftState.currentTeam,
       availablePlayers: draftState.availablePlayers.length,
-      positionFilter: positionFilter
+      positionFilter: positionFilter,
+      isDraftPaused
     });
 
-    if (draftState.isUserTurn || draftState.isDraftComplete) {
-      console.log('AI Draft blocked:', { isUserTurn: draftState.isUserTurn, isDraftComplete: draftState.isDraftComplete });
+    if (draftState.isUserTurn || draftState.isDraftComplete || isDraftPaused) {
+      console.log('AI Draft blocked:', { isUserTurn: draftState.isUserTurn, isDraftComplete: draftState.isDraftComplete, isDraftPaused });
       return;
     }
 
@@ -246,6 +281,17 @@ function MockDraft() {
     });
 
     const newTeamRosters = { ...draftState.teamRosters };
+    
+    // Safety check: ensure team roster exists and has the position
+    if (!newTeamRosters[teamNumber]) {
+      console.error('Team roster not found for team', teamNumber);
+      return;
+    }
+    if (!newTeamRosters[teamNumber][player.position]) {
+      console.error('Position not found for team', teamNumber, 'position', player.position);
+      return;
+    }
+    
     newTeamRosters[teamNumber][player.position].push(player);
 
     const newAvailablePlayers = draftState.availablePlayers.filter(p => p.id !== player.id);
@@ -298,7 +344,11 @@ function MockDraft() {
   };
 
   const handleDraft = (player) => {
-    if (!draftState.isUserTurn || draftState.isDraftComplete) return;
+    console.log('handleDraft called:', { isUserTurn: draftState.isUserTurn, isDraftComplete: draftState.isDraftComplete, isDraftPaused });
+    if (!draftState.isUserTurn || draftState.isDraftComplete || isDraftPaused) {
+      console.log('Draft blocked:', { isUserTurn: draftState.isUserTurn, isDraftComplete: draftState.isDraftComplete, isDraftPaused });
+      return;
+    }
     
     executePick(player, 1); // User is team 1
     
@@ -320,6 +370,7 @@ function MockDraft() {
                 {draftState.isUserTurn ? 'Your Turn' : `Team ${draftState.currentTeam}`} 
                 (Pick #{draftState.currentPick})
               </span>
+              {isDraftPaused && <span className="turn-team" style={{background: '#ff6b6b', marginLeft: '10px'}}>DRAFT PAUSED</span>}
             </div>
           </div>
         </div>
@@ -367,21 +418,39 @@ function MockDraft() {
                 </div>
               </div>
               
-              {/* draft history buttons - only show after first pick */}
-              {draftState.draftBoard.length > 0 && (
-                <div className="draft-history glass">
-                  <div className="history-header">
+              {/* draft history buttons - always show for testing */}
+              {true && (
+                <div className="button-container glass">
+                  <div className="button-header">
                     <button 
                       className="history-link-btn"
-                      onClick={() => setIsHistoryExpanded(true)}
+                      onClick={() => {
+                        console.log('View Picks clicked');
+                        setIsHistoryExpanded(true);
+                      }}
                     >
                       View Picks 
                     </button>
                     <button 
                       className="history-link-btn"
-                      onClick={() => setIsRosterExpanded(true)}
+                      onClick={() => {
+                        console.log('View Rosters clicked');
+                        setIsRosterExpanded(true);
+                      }}
                     >
                       View Rosters
+                    </button>
+                    <button 
+                      className="history-link-btn"
+                      onClick={handlePauseDraft}
+                    >
+                      {isDraftPaused ? 'Resume Draft' : 'Pause Draft'}
+                    </button>
+                    <button 
+                      className="history-link-btn"
+                      onClick={handleRestartDraft}
+                    >
+                      Restart Draft
                     </button>
                   </div>
                 </div>
@@ -552,29 +621,8 @@ function MockDraft() {
               </div>
             </div>
           )}
-          
-          {/* draft controls - show when draft isn't done */}
-          {!draftState.isDraftComplete && (
-            <div className="draft-controls glass">
-              <h3>Draft Controls</h3>
-              <div className="control-buttons">
-                {draftState.isUserTurn ? (
-                  <p className="turn-message">It's your turn! Select a player to draft.</p>
-                ) : (
-                  <div>
-                    <p className="turn-message">AI is drafting...</p>
-                    <button 
-                      className="btn btn-secondary" 
-                      onClick={aiDraft}
-                      disabled={draftState.isUserTurn}
-                    >
-                      Force AI Pick
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+  
+       
           
           {/* show when draft is finished */}
           {draftState.isDraftComplete && (

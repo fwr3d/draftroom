@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/draftroom/static/css/main.0703c4cd.css",
+    "main.css": "/draftroom/static/css/main.5c1c06c3.css",
     "main.js": "/draftroom/static/js/main.313a3628.js",
     "index.html": "/draftroom/index.html",
-    "main.0703c4cd.css.map": "/draftroom/static/css/main.0703c4cd.css.map",
+    "main.5c1c06c3.css.map": "/draftroom/static/css/main.5c1c06c3.css.map",
     "main.313a3628.js.map": "/draftroom/static/js/main.313a3628.js.map"
   },
   "entrypoints": [
-    "static/css/main.0703c4cd.css",
+    "static/css/main.5c1c06c3.css",
     "static/js/main.313a3628.js"
   ]
 }
